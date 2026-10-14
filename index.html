@@ -182,11 +182,37 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
 .tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
 .tbl tr:last-child td{border-bottom:0}
 .tbl small{color:var(--ink-3);display:block}
-#clipTable{min-width:980px}
+#clipTable{min-width:1060px}
+.salebox{display:inline-flex;align-items:center;gap:6px;font-size:.86rem;white-space:nowrap;cursor:pointer}
+.salebox input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
+.pill--gc{background:var(--accent-soft);color:var(--accent-deep)}
 #clipTable .code{display:inline-block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
 #clipTable select,#clipTable input{min-height:36px;padding:5px 8px;font-size:.88rem}
 #clipTable select{min-width:120px}
 #clipTable input{min-width:140px}
+.gc-hero{background-color:var(--band);color:var(--band-ink);border-radius:16px;padding:20px 18px 18px;margin-top:20px;display:flex;flex-direction:column;gap:14px}
+.gc-hero__top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.gc-num{font-size:3.4rem;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.gc-num small{font-size:1.1rem;font-weight:600;margin-left:6px;letter-spacing:0}
+.gc-tier{background:var(--surface);color:var(--accent-deep);border-radius:999px;padding:4px 14px;font-weight:700;white-space:nowrap}
+.gc-tier--none{color:var(--ink-2)}
+.gc-bar{position:relative;height:14px;border-radius:999px;background:rgba(255,255,255,.45);overflow:hidden}
+.gc-bar span{position:absolute;inset:0 auto 0 0;background:var(--band-line);border-radius:999px}
+@media (prefers-reduced-motion:no-preference){.gc-bar span{transition:width .6s ease}}
+.gc-next{font-weight:500}
+.gc-ladder{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.gc-ladder li{background:var(--surface);border:2px solid transparent;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.gc-ladder li.on{border-color:var(--accent)}
+.gc-ladder b{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.gc-ladder span{font-size:.85rem;color:var(--ink-2)}
+.gc-ladder em{font-style:normal;font-weight:700;color:var(--accent-deep)}
+.gc-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+.gc-stats div{background:var(--surface);border-radius:14px;padding:12px}
+.gc-stats b{display:block;font-size:1.4rem;font-variant-numeric:tabular-nums}
+.gc-stats span{font-size:.82rem;color:var(--ink-2)}
+.gc-rule{margin-top:16px;background:var(--surface);border-radius:14px;padding:14px 16px;color:var(--ink-2);font-size:.92rem}
+.gc-rule b{color:var(--ink)}
+@media (max-width:520px){.gc-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.gc-num{font-size:2.8rem}}
 .admin-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:24px;margin-top:32px;align-items:start}
 .admin-grid h2{margin-bottom:0}
 .plist{list-style:none;margin:12px 0 0;padding:0;background:var(--surface);border-radius:14px}
@@ -263,6 +289,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   <nav class="tabs" role="tablist" aria-label="เมนูหลัก">
     <button role="tab" id="tabbtn-send" data-tab="send" aria-selected="true" aria-controls="tab-send">ส่งโค้ด</button>
     <button role="tab" id="tabbtn-history" data-tab="history" aria-selected="false" aria-controls="tab-history">ประวัติของฉัน</button>
+    <button role="tab" id="tabbtn-score" data-tab="score" aria-selected="false" aria-controls="tab-score">GC Score</button>
     <button role="tab" id="tabbtn-admin" data-tab="admin" aria-selected="false" aria-controls="tab-admin" hidden>หลังบ้าน</button>
   </nav>
 </header>
@@ -303,6 +330,12 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     </div>
   </section>
 
+  <section id="tab-score" role="tabpanel" aria-labelledby="tabbtn-score" hidden>
+    <h1>GC Score ของคุณ</h1>
+    <p class="lede">สะสม 1 GC ต่อ 1 คลิปที่แบรนด์ยิงแอดแล้วเกิดยอดขายตั้งแต่บาทแรก ยิ่งสะสมมาก ค่าคอมยิ่งเพิ่ม</p>
+    <div id="score"></div>
+  </section>
+
   <section id="tab-history" role="tabpanel" aria-labelledby="tabbtn-history" hidden>
     <h1>ประวัติของฉัน</h1>
     <p class="lede">โค้ดทั้งหมดที่คุณส่ง พร้อมสถานะล่าสุดจากแบรนด์</p>
@@ -327,7 +360,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     </div>
     <div class="table-wrap" id="clipWrap">
       <table class="tbl" id="clipTable">
-        <thead><tr><th>ส่งเมื่อ</th><th>ช่อง</th><th>สินค้า</th><th>Gen code</th><th>คลิป</th><th>สถานะ</th><th>หมายเหตุ</th></tr></thead>
+        <thead><tr><th>ส่งเมื่อ</th><th>ช่อง</th><th>สินค้า</th><th>Gen code</th><th>คลิป</th><th>สถานะ</th><th>ยอดขาย</th><th>หมายเหตุ</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -338,7 +371,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         <h2>ครีเอเตอร์</h2>
         <div class="table-wrap">
           <table class="tbl" id="creatorTable">
-            <thead><tr><th>ช่อง</th><th>ส่งทั้งหมด</th><th>ยิงแอดแล้ว</th><th>ส่งล่าสุด</th></tr></thead>
+            <thead><tr><th>ช่อง</th><th>ส่งทั้งหมด</th><th>ยิงแอดแล้ว</th><th>GC</th><th>Extra Com</th><th>ส่งล่าสุด</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -471,7 +504,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   /* ---------- local copy of what the server allowed this person to see ---------- */
   function clipDoc(c) {
     return { code: c.code, productId: c.product_id || '', productName: c.product_name, url: c.url, handle: c.handle,
-      days: c.days, submittedAt: c.submitted_at, expiresAt: c.expires_at, status: c.status, usedAt: c.used_at || null, note: c.note || '' };
+      days: c.days, submittedAt: c.submitted_at, expiresAt: c.expires_at, status: c.status, usedAt: c.used_at || null, note: c.note || '', hasSale: c.has_sale === true };
   }
   function rebuild() {
     var s = {};
@@ -564,6 +597,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       var ids = Object.keys(data.clips), chain = Promise.resolve();
       ids.forEach(function (id) {
         var patch = Object.assign({ id: id }, pick(data.clips[id], ['status', 'note']));
+        if (data.clips[id] && data.clips[id].hasSale !== undefined) patch.has_sale = !!data.clips[id].hasSale;
         chain = chain.then(function () { return call('clip_update', patch); });
       });
       return done(chain);
@@ -809,6 +843,11 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   var MAX_ROWS = 400;
   var DEFAULT_BRAND = 'ระบบส่ง Gen code';
   var STATUS_LABEL = { new: 'รอยิงแอด', used: 'ยิงแอดแล้ว', expired: 'หมดอายุ', invalid: 'ใช้ไม่ได้' };
+  var GC_TIERS = [{ gc: 100, extra: 3 }, { gc: 500, extra: 5 }];
+  function isGc(c) { return c.status === 'used' && !!c.hasSale; }
+  function gcTier(n) { var t = null; GC_TIERS.forEach(function (x) { if (n >= x.gc) t = x; }); return t; }
+  function gcNext(n) { for (var i = 0; i < GC_TIERS.length; i++) if (n < GC_TIERS[i].gc) return GC_TIERS[i]; return null; }
+  function fmtNum(n) { try { return Number(n).toLocaleString('th-TH'); } catch (e) { return String(n); } }
 
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -929,7 +968,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       code: String(c.code || ''), productId: String(c.productId || ''), productName: String(c.productName || ''),
       url: String(c.url || ''), handle: String(c.handle || ''), days: Number(c.days) || 0,
       submittedAt: Number(c.submittedAt) || 0, expiresAt: Number(c.expiresAt) || 0,
-      status: String(c.status || 'new'), usedAt: Number(c.usedAt) || 0, note: String(c.note || '')
+      status: String(c.status || 'new'), usedAt: Number(c.usedAt) || 0, note: String(c.note || ''), hasSale: c.hasSale === true
     };
   }
 
@@ -978,13 +1017,14 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   /* ---------- tabs ---------- */
   function setTab(name) {
     S.tab = name;
-    ['send', 'history', 'admin'].forEach(function (t) {
+    ['send', 'history', 'score', 'admin'].forEach(function (t) {
       $('#tab-' + t).hidden = t !== name;
       $('#tabbtn-' + t).setAttribute('aria-selected', t === name ? 'true' : 'false');
     });
     $('#main').classList.toggle('wide', name === 'admin');
     if (name === 'admin') renderAdmin();
     if (name === 'history') renderHistory();
+    if (name === 'score') renderScore();
     renderCover();
   }
 
@@ -1154,6 +1194,46 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   }
 
   /* ---------- history ---------- */
+  function myClips() {
+    var out = [];
+    if (S.mine && S.mine.clips) Object.keys(S.mine.clips).forEach(function (k) {
+      var c = S.mine.clips[k]; if (c && typeof c === 'object') out.push(normClip(c));
+    });
+    return out;
+  }
+  function renderScore() {
+    var box = $('#score'); if (!box) return;
+    var clips = myClips(), now = Date.now();
+    var gc = clips.filter(isGc).length;
+    var used = clips.filter(function (c) { return statusOf(c, now) === 'used'; }).length;
+    var tier = gcTier(gc), next = gcNext(gc);
+    var prev = tier ? tier.gc : 0, pct = next ? Math.max(0, Math.min(100, (gc - prev) / (next.gc - prev) * 100)) : 100;
+    var rate = used ? Math.round(gc / used * 100) : 0;
+    var nextText = next
+      ? 'อีก ' + fmtNum(next.gc - gc) + ' GC ได้ Extra Com +' + next.extra + '%'
+      : 'คุณได้รับ Extra Com สูงสุดแล้ว';
+    var ladder = [{ gc: 0, extra: 0 }].concat(GC_TIERS).map(function (t) {
+      var on = (tier ? tier.gc : 0) === t.gc;
+      return '<li class="' + (on ? 'on' : '') + '"><b>' + fmtNum(t.gc) + ' GC</b><span>' + (t.extra ? 'Extra Com <em>+' + t.extra + '%</em>' : 'ค่าคอมพื้นฐาน') + '</span>' +
+        (on ? '<span>ระดับปัจจุบัน</span>' : '') + '</li>';
+    }).join('');
+    box.innerHTML =
+      '<div class="gc-hero">' +
+        '<div class="gc-hero__top"><div class="gc-num">' + fmtNum(gc) + '<small>GC</small></div>' +
+        '<span class="gc-tier' + (tier ? '' : ' gc-tier--none') + '">' + (tier ? 'Extra Com +' + tier.extra + '%' : 'ยังไม่มี Extra Com') + '</span></div>' +
+        '<div class="gc-bar" role="progressbar" aria-label="ความคืบหน้าไประดับถัดไป" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.round(pct) + '"><span style="width:' + pct.toFixed(1) + '%"></span></div>' +
+        '<p class="gc-next">' + nextText + '</p>' +
+      '</div>' +
+      '<ul class="gc-ladder">' + ladder + '</ul>' +
+      '<div class="gc-stats">' +
+        '<div><b>' + fmtNum(clips.length) + '</b><span>คลิปที่ส่งโค้ด</span></div>' +
+        '<div><b>' + fmtNum(used) + '</b><span>ยิงแอดแล้ว</span></div>' +
+        '<div><b>' + fmtNum(gc) + '</b><span>เกิดยอดขาย</span></div>' +
+        '<div><b>' + rate + '%</b><span>อัตราเกิดยอดขาย</span></div>' +
+      '</div>' +
+      '<p class="gc-rule"><b>วิธีนับ GC</b> แบรนด์จะบันทึกให้เมื่อคลิปที่ยิงแอดแล้วเกิดยอดขาย คลิปละ 1 GC ไม่ว่ายอดขายจะมากหรือน้อย Extra Com จ่ายเพิ่มจากค่าคอมพื้นฐาน ตรวจสอบได้ที่หน้าประวัติของฉัน</p>';
+  }
+
   function renderHistory() {
     var box = $('#history'), now = Date.now();
     var clips = [];
@@ -1171,6 +1251,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       return '<li><div class="hist__top"><span class="hist__prod">' + esc(c.productName || 'ไม่ระบุสินค้า') + '</span>' +
         '<span class="pill pill--plain"><span class="dot dot--' + st + '" aria-hidden="true"></span>' + STATUS_LABEL[st] + '</span></div>' +
         '<p class="hist__meta">@' + esc(c.handle) + ' ส่งเมื่อ ' + esc(fmtDate(c.submittedAt)) + (exp ? ' (' + esc(exp) + ')' : '') + link + '</p>' +
+        (isGc(c) ? '<p class="hist__meta"><span class="pill pill--gc">เกิดยอดขาย +1 GC</span></p>' : '') +
         (c.note ? '<p class="hist__meta">หมายเหตุจากแบรนด์: ' + esc(c.note) + '</p>' : '') +
         '<span class="code">' + esc(c.code) + '</span></li>';
     }).join('') + '</ul>';
@@ -1270,24 +1351,27 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
           '<option value="used"' + (stored === 'used' ? ' selected' : '') + '>ยิงแอดแล้ว</option>' +
           '<option value="invalid"' + (stored === 'invalid' ? ' selected' : '') + '>ใช้ไม่ได้</option></select></span>' +
           (st === 'expired' ? '<small><span class="pill pill--expired">หมดอายุ</span></small>' : (soon ? '<small><span class="pill pill--warn">ใกล้หมดอายุ</span></small>' : '')) + '</td>' +
+        '<td><label class="salebox"><input type="checkbox" data-act="sale"' + (isGc(r) ? ' checked' : '') + '>เกิดยอดขาย</label></td>' +
         '<td><input type="text" data-act="note" maxlength="200" placeholder="เพิ่มหมายเหตุ" aria-label="หมายเหตุ" value="' + esc(r.note) + '"></td>' +
         '</tr>';
-    }).join('') + (list.length > MAX_ROWS ? '<tr><td colspan="7"><small>แสดง ' + MAX_ROWS + ' จาก ' + list.length + ' รายการ ใช้ตัวกรองหรือดาวน์โหลด CSV เพื่อดูทั้งหมด</small></td></tr>' : '');
+    }).join('') + (list.length > MAX_ROWS ? '<tr><td colspan="8"><small>แสดง ' + MAX_ROWS + ' จาก ' + list.length + ' รายการ ใช้ตัวกรองหรือดาวน์โหลด CSV เพื่อดูทั้งหมด</small></td></tr>' : '');
   }
 
   function renderCreators() {
     var tbody = $('#creatorTable tbody'), now = Date.now(), by = {};
     allRows().forEach(function (r) {
-      var c = by[r.uid] || (by[r.uid] = { uid: r.uid, handles: {}, total: 0, used: 0, last: 0 });
-      c.handles[r.handle] = true; c.total++; if (statusOf(r, now) === 'used') c.used++;
+      var c = by[r.uid] || (by[r.uid] = { uid: r.uid, handles: {}, total: 0, used: 0, gc: 0, last: 0 });
+      c.handles[r.handle] = true; c.total++; if (statusOf(r, now) === 'used') c.used++; if (isGc(r)) c.gc++;
       if (r.submittedAt > c.last) c.last = r.submittedAt;
     });
-    var list = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.total - a.total || b.last - a.last; });
-    if (!list.length) { tbody.innerHTML = '<tr><td colspan="4"><small>ยังไม่มีครีเอเตอร์ส่งโค้ด</small></td></tr>'; return; }
+    var list = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.gc - a.gc || b.total - a.total || b.last - a.last; });
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="6"><small>ยังไม่มีครีเอเตอร์ส่งโค้ด</small></td></tr>'; return; }
     tbody.innerHTML = list.map(function (c) {
       var name = nameOf(c.uid);
       return '<tr><td><b>' + Object.keys(c.handles).map(function (h) { return '@' + esc(h); }).join(', ') + '</b>' + (name ? '<small>' + esc(name) + '</small>' : '') + '</td>' +
-        '<td>' + c.total + '</td><td>' + c.used + '</td><td>' + esc(fmtDate(c.last)) + '</td></tr>';
+        '<td>' + c.total + '</td><td>' + c.used + '</td><td><b>' + fmtNum(c.gc) + '</b></td>' +
+        '<td>' + (gcTier(c.gc) ? '<span class="pill pill--gc">+' + gcTier(c.gc).extra + '%</span>' : '<small>-</small>') + '</td>' +
+        '<td>' + esc(fmtDate(c.last)) + '</td></tr>';
     }).join('');
   }
 
@@ -1344,10 +1428,10 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     if (!S.downloads) return;
     var now = Date.now(), list = filteredRows(allRows(), now);
     if (!list.length) { toast('ไม่มีรายการให้ดาวน์โหลด'); return; }
-    var head = ['วันที่ส่ง', 'ช่อง TikTok', 'ผู้ส่ง', 'สินค้า', 'Gen code', 'ลิงก์คลิป', 'อนุญาต (วัน)', 'หมดอายุ', 'สถานะ', 'หมายเหตุ'];
+    var head = ['วันที่ส่ง', 'ช่อง TikTok', 'ผู้ส่ง', 'สินค้า', 'Gen code', 'ลิงก์คลิป', 'อนุญาต (วัน)', 'หมดอายุ', 'สถานะ', 'เกิดยอดขาย (GC)', 'หมายเหตุ'];
     var lines = [head.map(csvCell).join(',')].concat(list.map(function (r) {
       return [new Date(r.submittedAt).toISOString().slice(0, 10), '@' + r.handle, nameOf(r.uid), r.productName, r.code, r.url, r.days,
-        r.expiresAt ? new Date(r.expiresAt).toISOString().slice(0, 10) : '', STATUS_LABEL[statusOf(r, now)], r.note].map(csvCell).join(',');
+        r.expiresAt ? new Date(r.expiresAt).toISOString().slice(0, 10) : '', STATUS_LABEL[statusOf(r, now)], isGc(r) ? 1 : 0, r.note].map(csvCell).join(',');
     }));
     S.downloads.save({ filename: 'gencode-' + new Date().toISOString().slice(0, 10) + '.csv', data: '\uFEFF' + lines.join('\r\n') })
       .then(function () { toast('ดาวน์โหลด CSV แล้ว ' + list.length + ' รายการ'); })
@@ -1528,7 +1612,14 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       var uid = tr.getAttribute('data-uid'), cid = tr.getAttribute('data-cid');
       if (act === 'status') {
         var v = el.value, dt = $('.dot', tr); if (dt) dt.className = 'dot dot--' + v;
-        adminUpdate(uid, cid, { status: v, usedAt: v === 'used' ? Date.now() : null }, 'อัปเดตสถานะ: ' + STATUS_LABEL[v]);
+        var patch = { status: v, usedAt: v === 'used' ? Date.now() : null };
+        if (v !== 'used') { patch.hasSale = false; var sb = $('[data-act="sale"]', tr); if (sb) sb.checked = false; }
+        adminUpdate(uid, cid, patch, 'อัปเดตสถานะ: ' + STATUS_LABEL[v]);
+      } else if (act === 'sale') {
+        var on = el.checked, sel = $('[data-act="status"]', tr);
+        var sp = { hasSale: on };
+        if (on && sel && sel.value !== 'used') { sp.status = 'used'; sp.usedAt = Date.now(); sel.value = 'used'; var d2 = $('.dot', tr); if (d2) d2.className = 'dot dot--used'; }
+        adminUpdate(uid, cid, sp, on ? 'บันทึกยอดขายแล้ว +1 GC' : 'ยกเลิกยอดขายแล้ว');
       } else if (act === 'note') {
         adminUpdate(uid, cid, { note: String(el.value).trim().slice(0, 200) }, 'บันทึกหมายเหตุแล้ว');
       }
@@ -1761,7 +1852,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         S.mine = snap.exists ? (snap.data() || null) : null;
         var h = $('#handle');
         if (S.mine && S.mine.handle && !S.handleTouched && !h.value) h.value = '@' + String(S.mine.handle);
-        renderHistory();
+        renderHistory(); if (S.tab === 'score') renderScore();
       }, function () {});
     }
 
