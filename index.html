@@ -191,7 +191,9 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
 .admin-grid h2{margin-bottom:0}
 .plist{list-style:none;margin:12px 0 0;padding:0;background:var(--surface);border-radius:14px}
 .plist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
-.plist__main{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.plist li{flex-wrap:wrap}
+.plist__main{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 220px}
+.plist__acts{margin-left:auto}
 .plist__acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .plist__acts label{position:relative;margin:0}
 .plist__acts label:focus-within{outline:3px solid var(--focus);outline-offset:2px}
@@ -213,6 +215,9 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
 .pimg:focus-within{outline:3px solid var(--focus);outline-offset:2px}
 .pimg img{width:100%;height:100%;object-fit:cover;display:block}
 .plist li:last-child{border-bottom:0}
+.pedit{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+.pedit input{width:100%;min-height:38px;padding:6px 10px;font-size:.92rem}
+.pedit__acts{display:flex;gap:6px}
 .plist .off{color:var(--ink-3);text-decoration:line-through}
 .inline-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
 .mt{margin-top:28px}
@@ -574,7 +579,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     }
     if (seg[0] === 'settings' && seg[1] === 'brand' && seg[2] === 'banners' && seg.length === 4) {
       if (op === 'set') return done(call('banner_add', pick(data, ['name', 'image'])));
-      if (op === 'update') return done(call('banner_update', { id: seg[3], active: data.active !== false }));
+      if (op === 'update') return done(call('banner_update', Object.assign({ id: seg[3] }, pick(data, ['name', 'image', 'active']))));
       return done(call('banner_delete', { id: seg[3] }));
     }
     if (seg[0] === 'users' && seg.length === 2 && op === 'update' && data.role) {
@@ -934,7 +939,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     products: [], productsLoaded: false,
     mine: null,
     all: [], names: {},
-    brand: { name: '', logo: '' }, banners: [],
+    brand: { name: '', logo: '' }, banners: [], editing: null,
     draft: [newClip()], handleTouched: false, openPicker: null, newImg: '',
     filter: { status: 'all', product: 'all', q: '' },
     saving: false, adminPending: false, tab: 'send'
@@ -1286,12 +1291,20 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     }).join('');
   }
 
+  function editorHtml(kind, cur, max, label) {
+    var v = S.editing && S.editing.kind === kind ? S.editing.value : cur;
+    return '<span class="pedit"><input type="text" data-act="ename" maxlength="' + max + '" aria-label="' + label + '" value="' + esc(v) + '">' +
+      '<span class="pedit__acts"><button type="button" class="btn-mini" data-act="esave">บันทึก</button>' +
+      '<button type="button" class="btn-mini" data-act="ecancel">ยกเลิก</button></span></span>';
+  }
+  function isEditing(kind, id) { return !!(S.editing && S.editing.kind === kind && S.editing.id === id); }
   function renderProductList() {
     var ul = $('#productList');
     if (!S.products.length) { ul.innerHTML = '<li><span class="off" style="text-decoration:none">ยังไม่มีสินค้า เพิ่มรายการแรกด้านล่าง</span></li>'; return; }
     ul.innerHTML = S.products.map(function (p) {
+      if (isEditing('p', p.id)) return '<li data-id="' + esc(p.id) + '"><span class="plist__main">' + thumb(p) + editorHtml('p', p.name, 80, 'ชื่อสินค้า') + '</span></li>';
       return '<li data-id="' + esc(p.id) + '"><span class="plist__main">' + thumb(p) + '<span class="' + (p.active ? '' : 'off') + '">' + esc(p.name) + '</span></span>' +
-        '<span class="plist__acts"><label class="btn-mini">' + (p.image ? 'เปลี่ยนรูป' : 'เพิ่มรูป') +
+        '<span class="plist__acts"><button type="button" class="btn-mini" data-act="edit">แก้ไขชื่อ</button><label class="btn-mini">' + (p.image ? 'เปลี่ยนรูป' : 'เพิ่มรูป') +
           '<input type="file" accept="image/*" class="sr" data-act="img" aria-label="' + (p.image ? 'เปลี่ยนรูป ' : 'เพิ่มรูป ') + esc(p.name) + '"></label>' +
         '<button type="button" class="btn-mini" data-act="toggle">' + (p.active ? 'ซ่อนจากฟอร์ม' : 'แสดงในฟอร์ม') + '</button></span></li>';
     }).join('');
@@ -1382,9 +1395,13 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     var ul = $('#bannerList');
     if (!S.banners.length) { ul.innerHTML = '<li><span class="off" style="text-decoration:none">ยังไม่มีภาพแคมเปญ อัปโหลดภาพแรกด้านล่าง</span></li>'; return; }
     ul.innerHTML = S.banners.map(function (b) {
-      return '<li data-id="' + esc(b.id) + '"><span class="plist__main"><img class="bthumb" src="' + esc(b.image) + '" alt="">' +
+      var img = '<img class="bthumb" src="' + esc(b.image) + '" alt="">';
+      if (isEditing('b', b.id)) return '<li data-id="' + esc(b.id) + '"><span class="plist__main">' + img + editorHtml('b', b.name, 60, 'ชื่อแคมเปญ') + '</span></li>';
+      return '<li data-id="' + esc(b.id) + '"><span class="plist__main">' + img +
         '<span class="' + (b.active ? '' : 'off') + '">' + esc(b.name || 'ไม่มีชื่อ') + '</span></span>' +
-        '<span class="plist__acts"><button type="button" class="btn-mini" data-act="btoggle">' + (b.active ? 'ซ่อน' : 'แสดง') + '</button>' +
+        '<span class="plist__acts"><button type="button" class="btn-mini" data-act="edit">แก้ไขชื่อ</button>' +
+        '<label class="btn-mini">เปลี่ยนภาพ<input type="file" accept="image/*" class="sr" data-act="bimg" aria-label="เปลี่ยนภาพแคมเปญ ' + esc(b.name) + '"></label>' +
+        '<button type="button" class="btn-mini" data-act="btoggle">' + (b.active ? 'ซ่อน' : 'แสดง') + '</button>' +
         '<button type="button" class="btn-mini" data-act="bdelete">ลบ</button></span></li>';
     }).join('');
   }
@@ -1564,6 +1581,60 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     }
     $('#addProduct').addEventListener('click', addProduct);
     $('#newProduct').addEventListener('keydown', function (e) { if (e.key === 'Enter') addProduct(); });
+    function startEdit(kind, id, name, listSel) {
+      S.editing = { kind: kind, id: id, value: name || '' };
+      if (kind === 'p') renderProductList(); else renderBannerList();
+      var inp = $(listSel + ' [data-act="ename"]'); if (inp) { inp.focus(); inp.select(); }
+    }
+    function stopEdit(kind) {
+      S.editing = null;
+      if (kind === 'p') renderProductList(); else renderBannerList();
+    }
+    function saveEdit(kind) {
+      var ed = S.editing; if (!ed || ed.kind !== kind) return;
+      var name = String(ed.value || '').trim();
+      if (kind === 'p') {
+        if (!name) { toast('พิมพ์ชื่อสินค้าก่อน'); return; }
+        if (S.products.some(function (x) { return x.id !== ed.id && x.name.toLowerCase() === name.toLowerCase(); })) { toast('มีสินค้าชื่อนี้อยู่แล้ว'); return; }
+      }
+      var path = (kind === 'p' ? 'products/' : 'settings/brand/banners/') + ed.id;
+      var btn = $((kind === 'p' ? '#productList' : '#bannerList') + ' [data-act="esave"]'); if (btn) btn.disabled = true;
+      enqueue(path, function () { return S.db.doc(path).update({ name: name.slice(0, kind === 'p' ? 80 : 60) }); })
+        .then(function () { stopEdit(kind); toast(kind === 'p' ? 'บันทึกชื่อสินค้าแล้ว' : 'บันทึกชื่อแคมเปญแล้ว'); },
+              function (err) { if (btn) btn.disabled = false; toast(writeErrorMessage(err)); });
+    }
+    [['#productList', 'p'], ['#bannerList', 'b']].forEach(function (pair) {
+      var list = $(pair[0]), kind = pair[1];
+      list.addEventListener('input', function (e) {
+        if (e.target.getAttribute('data-act') === 'ename' && S.editing) S.editing.value = e.target.value;
+      });
+      list.addEventListener('keydown', function (e) {
+        if (e.target.getAttribute('data-act') !== 'ename') return;
+        if (e.key === 'Enter') { e.preventDefault(); saveEdit(kind); }
+        if (e.key === 'Escape') stopEdit(kind);
+      });
+      list.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-act]'); if (!b) return;
+        var act = b.getAttribute('data-act'), li = b.closest('li'), id = li && li.getAttribute('data-id'); if (!id) return;
+        if (act === 'edit') {
+          var item = kind === 'p' ? productById(id) : S.banners.filter(function (x) { return x.id === id; })[0];
+          if (item) startEdit(kind, id, item.name, pair[0]);
+        } else if (act === 'esave') saveEdit(kind);
+        else if (act === 'ecancel') stopEdit(kind);
+      });
+    });
+    $('#bannerList').addEventListener('change', function (e) {
+      var el = e.target; if (el.getAttribute('data-act') !== 'bimg') return;
+      var f = el.files && el.files[0]; el.value = '';
+      var li = el.closest('li'); if (!f || !li) return;
+      var path = 'settings/brand/banners/' + li.getAttribute('data-id');
+      fileToCover(f).then(function (src) {
+        return enqueue(path, function () { return S.db.doc(path).update({ image: src }); })
+          .then(function () { toast('เปลี่ยนภาพแคมเปญแล้ว'); }, function (err) { toast(writeErrorMessage(err)); });
+      }, function (err) {
+        if (err && err.message === 'size') toast('ภาพนี้ใหญ่เกินไป ลองใช้ภาพที่รายละเอียดน้อยลง'); else imgError();
+      });
+    });
     $('#productList').addEventListener('click', function (e) {
       var b = e.target.closest('[data-act="toggle"]'); if (!b) return;
       var id = b.closest('li').getAttribute('data-id'), p = productById(id); if (!p) return;
