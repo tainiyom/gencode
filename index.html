@@ -182,14 +182,20 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
 .tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
 .tbl tr:last-child td{border-bottom:0}
 .tbl small{color:var(--ink-3);display:block}
-#clipTable{min-width:1060px}
+#clipTable{min-width:1140px}
+.delcell{display:flex;gap:6px;align-items:center;flex-wrap:wrap;white-space:nowrap}
+.btn-mini--danger{border-color:var(--danger);color:var(--danger)}
+.trash{margin-top:14px;background:var(--surface);border-radius:14px;padding:0 14px}
+.trash summary{cursor:pointer;padding:12px 0;font-weight:600}
+.trash .table-wrap{margin:0 0 14px;background:var(--surface-2)}
+#trashTable{min-width:760px}
 .salebox{display:inline-flex;align-items:center;gap:6px;font-size:.86rem;white-space:nowrap;cursor:pointer}
 .salebox input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .pill--gc{background:var(--accent-soft);color:var(--accent-deep)}
 #clipTable .code{display:inline-block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
-#clipTable select,#clipTable input{min-height:36px;padding:5px 8px;font-size:.88rem}
+#clipTable select,#clipTable input[type=text]{min-height:36px;padding:5px 8px;font-size:.88rem}
 #clipTable select{min-width:120px}
-#clipTable input{min-width:140px}
+#clipTable input[type=text]{min-width:140px}
 .gc-hero{background-color:var(--band);color:var(--band-ink);border-radius:16px;padding:20px 18px 18px;margin-top:20px;display:flex;flex-direction:column;gap:14px}
 .gc-hero__top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .gc-num{font-size:3.4rem;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
@@ -371,11 +377,19 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     </div>
     <div class="table-wrap" id="clipWrap">
       <table class="tbl" id="clipTable">
-        <thead><tr><th>ส่งเมื่อ</th><th>ช่อง</th><th>สินค้า</th><th>Gen code</th><th>คลิป</th><th>สถานะ</th><th>ยอดขาย</th><th>หมายเหตุ</th></tr></thead>
+        <thead><tr><th>ส่งเมื่อ</th><th>ช่อง</th><th>สินค้า</th><th>Gen code</th><th>คลิป</th><th>สถานะ</th><th>ยอดขาย</th><th>หมายเหตุ</th><th><span class="sr">จัดการ</span></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
     <p class="empty" id="tableEmpty" hidden></p>
+    <details class="trash" id="trashBox" hidden>
+      <summary id="trashSummary">รายการที่ลบ</summary>
+      <p class="hint">รายการที่ลบไม่นับในตาราง สถิติ GC และไฟล์ CSV และครีเอเตอร์จะไม่เห็นในประวัติ กดดึงกลับเพื่อคืนรายการพร้อมสถานะเดิม</p>
+      <div class="table-wrap"><table class="tbl" id="trashTable">
+        <thead><tr><th>ลบเมื่อ</th><th>ลบโดย</th><th>ช่อง</th><th>สินค้า</th><th>Gen code</th><th><span class="sr">ดึงกลับ</span></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </details>
 
     <div class="admin-grid" id="adminGrid">
       <section>
@@ -518,7 +532,8 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   /* ---------- local copy of what the server allowed this person to see ---------- */
   function clipDoc(c) {
     return { code: c.code, productId: c.product_id || '', productName: c.product_name, url: c.url, handle: c.handle,
-      days: c.days, submittedAt: c.submitted_at, expiresAt: c.expires_at, status: c.status, usedAt: c.used_at || null, note: c.note || '', hasSale: c.has_sale === true };
+      days: c.days, submittedAt: c.submitted_at, expiresAt: c.expires_at, status: c.status, usedAt: c.used_at || null, note: c.note || '', hasSale: c.has_sale === true,
+      deletedAt: c.deleted_at || null, deletedBy: c.deleted_by || '' };
   }
   function rebuild() {
     var s = {};
@@ -613,6 +628,11 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       }
       var ids = Object.keys(data.clips), chain = Promise.resolve();
       ids.forEach(function (id) {
+        if (data.clips[id] && data.clips[id].deletedAt !== undefined) {
+          var del = !!data.clips[id].deletedAt;
+          chain = chain.then(function () { return call(del ? 'clip_delete' : 'clip_restore', { id: id }); });
+          return;
+        }
         var patch = Object.assign({ id: id }, pick(data.clips[id], ['status', 'note']));
         if (data.clips[id] && data.clips[id].hasSale !== undefined) patch.has_sale = !!data.clips[id].hasSale;
         chain = chain.then(function () { return call('clip_update', patch); });
@@ -989,7 +1009,8 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       code: String(c.code || ''), productId: String(c.productId || ''), productName: String(c.productName || ''),
       url: String(c.url || ''), handle: String(c.handle || ''), days: Number(c.days) || 0,
       submittedAt: Number(c.submittedAt) || 0, expiresAt: Number(c.expiresAt) || 0,
-      status: String(c.status || 'new'), usedAt: Number(c.usedAt) || 0, note: String(c.note || ''), hasSale: c.hasSale === true
+      status: String(c.status || 'new'), usedAt: Number(c.usedAt) || 0, note: String(c.note || ''), hasSale: c.hasSale === true,
+      deletedAt: Number(c.deletedAt) || 0, deletedBy: String(c.deletedBy || '')
     };
   }
 
@@ -1054,7 +1075,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   function popularity() {
     if (S.popular) return S.popular;
     var m = {};
-    S.all.forEach(function (d) { Object.keys(d.clips || {}).forEach(function (k) { var c = d.clips[k]; if (c && c.productId) m[c.productId] = (m[c.productId] || 0) + 1; }); });
+    S.all.forEach(function (d) { Object.keys(d.clips || {}).forEach(function (k) { var c = d.clips[k]; if (c && c.productId && !c.deletedAt) m[c.productId] = (m[c.productId] || 0) + 1; }); });
     return m;
   }
   function rankedProducts() {
@@ -1230,7 +1251,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   function myClips() {
     var out = [];
     if (S.mine && S.mine.clips) Object.keys(S.mine.clips).forEach(function (k) {
-      var c = S.mine.clips[k]; if (c && typeof c === 'object') out.push(normClip(c));
+      var c = S.mine.clips[k]; if (c && typeof c === 'object' && !c.deletedAt) out.push(normClip(c));
     });
     return out;
   }
@@ -1283,7 +1304,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     var box = $('#history'), now = Date.now();
     var clips = [];
     if (S.mine && S.mine.clips) Object.keys(S.mine.clips).forEach(function (k) {
-      var c = S.mine.clips[k]; if (c && typeof c === 'object') clips.push(normClip(c));
+      var c = S.mine.clips[k]; if (c && typeof c === 'object' && !c.deletedAt) clips.push(normClip(c));
     });
     clips.sort(function (a, b) { return b.submittedAt - a.submittedAt; });
     if (!clips.length) {
@@ -1303,7 +1324,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   }
 
   /* ---------- admin ---------- */
-  function allRows() {
+  function allRows(deleted) {
     var rows = [];
     S.all.forEach(function (d) {
       var clips = d.clips || {};
@@ -1311,7 +1332,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         var c = clips[cid];
         if (!c || typeof c !== 'object') return;
         var r = normClip(c); r.uid = d.uid; r.cid = cid;
-        rows.push(r);
+        if (!r.deletedAt === !deleted) rows.push(r);
       });
     });
     rows.sort(function (a, b) { return b.submittedAt - a.submittedAt; });
@@ -1366,7 +1387,23 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     renderClipTable();
   }
 
+  function renderTrash() {
+    var box = $('#trashBox'); if (!box) return;
+    var rows = allRows(true).sort(function (a, b) { return b.deletedAt - a.deletedAt; });
+    box.hidden = !rows.length;
+    $('#trashSummary').textContent = 'รายการที่ลบ (' + rows.length + ')';
+    $('#trashTable tbody').innerHTML = rows.slice(0, MAX_ROWS).map(function (r) {
+      var who = nameOf(r.deletedBy) || (r.deletedBy === S.uid ? 'คุณ' : '-');
+      var dt = r.deletedAt ? new Date(r.deletedAt) : null;
+      var when = dt ? fmtDate(r.deletedAt) + ' ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2) : '-';
+      return '<tr data-uid="' + esc(r.uid) + '" data-cid="' + esc(r.cid) + '"><td>' + esc(when) + '</td><td>' + esc(who) + '</td>' +
+        '<td><b>@' + esc(r.handle) + '</b></td><td>' + esc(r.productName) + '</td>' +
+        '<td><span class="code" title="' + esc(r.code) + '">' + esc(r.code) + '</span></td>' +
+        '<td><button type="button" class="btn-mini" data-act="restore">ดึงกลับ</button></td></tr>';
+    }).join('');
+  }
   function renderClipTable() {
+    renderTrash();
     var now = Date.now(), rows = allRows();
     var dup = {};
     rows.forEach(function (r) { dup[r.code] = (dup[r.code] || 0) + 1; });
@@ -1398,8 +1435,9 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
           (st === 'expired' ? '<small><span class="pill pill--expired">หมดอายุ</span></small>' : (soon ? '<small><span class="pill pill--warn">ใกล้หมดอายุ</span></small>' : '')) + '</td>' +
         '<td><label class="salebox"><input type="checkbox" data-act="sale"' + (isGc(r) ? ' checked' : '') + '>เกิดยอดขาย</label></td>' +
         '<td><input type="text" data-act="note" maxlength="200" placeholder="เพิ่มหมายเหตุ" aria-label="หมายเหตุ" value="' + esc(r.note) + '"></td>' +
+        '<td><span class="delcell"><button type="button" class="btn-mini" data-act="del">ลบ</button></span></td>' +
         '</tr>';
-    }).join('') + (list.length > MAX_ROWS ? '<tr><td colspan="8"><small>แสดง ' + MAX_ROWS + ' จาก ' + list.length + ' รายการ ใช้ตัวกรองหรือดาวน์โหลด CSV เพื่อดูทั้งหมด</small></td></tr>' : '');
+    }).join('') + (list.length > MAX_ROWS ? '<tr><td colspan="9"><small>แสดง ' + MAX_ROWS + ' จาก ' + list.length + ' รายการ ใช้ตัวกรองหรือดาวน์โหลด CSV เพื่อดูทั้งหมด</small></td></tr>' : '');
   }
 
   function renderCreators() {
@@ -1650,6 +1688,27 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         if (codeEl) { codeEl.style.maxWidth = 'none'; codeEl.style.whiteSpace = 'normal'; codeEl.style.wordBreak = 'break-all'; codeEl.style.userSelect = 'all'; }
         toast('คัดลอกอัตโนมัติไม่ได้ เลือกโค้ดแล้วคัดลอกเอง');
       });
+    });
+    table.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-act="del"],[data-act="delok"],[data-act="delno"]'); if (!b) return;
+      var tr = b.closest('tr'), cell = b.closest('.delcell'); if (!tr || !cell) return;
+      var act = b.getAttribute('data-act');
+      if (act === 'del') {
+        S.adminPending = false;
+        cell.innerHTML = '<span>ยืนยันลบ?</span><button type="button" class="btn-mini btn-mini--danger" data-act="delok">ลบ</button><button type="button" class="btn-mini" data-act="delno">ยกเลิก</button>';
+        var ok = $('[data-act="delok"]', cell); if (ok) ok.focus();
+      } else if (act === 'delno') {
+        cell.innerHTML = '<button type="button" class="btn-mini" data-act="del">ลบ</button>';
+      } else {
+        b.disabled = true;
+        adminUpdate(tr.getAttribute('data-uid'), tr.getAttribute('data-cid'), { deletedAt: Date.now(), deletedBy: S.uid }, 'ลบรายการแล้ว ดึงกลับได้ที่หัวข้อรายการที่ลบ')
+          .then(function () { setTimeout(renderClipTableSafe, 0); });
+      }
+    });
+    $('#trashTable').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-act="restore"]'); if (!b) return;
+      var tr = b.closest('tr'); b.disabled = true;
+      adminUpdate(tr.getAttribute('data-uid'), tr.getAttribute('data-cid'), { deletedAt: null, deletedBy: null }, 'ดึงรายการกลับแล้ว');
     });
     table.addEventListener('change', function (e) {
       var el = e.target, act = el.getAttribute('data-act'); if (!act) return;
@@ -1946,6 +2005,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         renderStats(); renderClipTableSafe(); renderCreators();
         if (S.user) {
           var ids = S.all.map(function (d) { return d.uid; });
+          S.all.forEach(function (d) { Object.keys(d.clips || {}).forEach(function (k) { var c = d.clips[k]; if (c && c.deletedBy && ids.indexOf(c.deletedBy) < 0) ids.push(c.deletedBy); }); });
           S.user.profiles(ids).then(function (ps) {
             var changed = false;
             ids.forEach(function (id) {
@@ -1953,7 +2013,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
               if (nameOf(id) !== n) changed = true;
             });
             S.names = ps || {};
-            if (changed) { renderClipTableSafe(); renderCreators(); }
+            if (changed) { renderClipTableSafe(); renderCreators(); renderTrash(); }
           });
         }
       }, function () { toast('โหลดรายการโค้ดไม่สำเร็จ เปิดหน้าใหม่อีกครั้ง'); });
