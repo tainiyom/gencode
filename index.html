@@ -210,6 +210,16 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
 .gc-stats div{background:var(--surface);border-radius:14px;padding:12px}
 .gc-stats b{display:block;font-size:1.4rem;font-variant-numeric:tabular-nums}
 .gc-stats span{font-size:.82rem;color:var(--ink-2)}
+.gcswitch{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border-radius:14px;padding:14px;margin-top:12px;cursor:pointer}
+.gcswitch input{position:absolute;opacity:0;width:1px;height:1px}
+.gcswitch__track{flex:none;position:relative;width:46px;height:26px;border-radius:999px;background:var(--line-strong);margin-top:2px}
+.gcswitch__track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.gcswitch input:checked + .gcswitch__track{background:var(--accent)}
+.gcswitch input:checked + .gcswitch__track::after{transform:translateX(20px)}
+.gcswitch input:focus-visible + .gcswitch__track{outline:3px solid var(--focus);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.gcswitch__track::after{transition:transform .2s}}
+.gcswitch b{display:block}
+.gcswitch small{color:var(--ink-2)}
 .gc-rule{margin-top:16px;background:var(--surface);border-radius:14px;padding:14px 16px;color:var(--ink-2);font-size:.92rem}
 .gc-rule b{color:var(--ink)}
 @media (max-width:520px){.gc-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.gc-num{font-size:2.8rem}}
@@ -289,7 +299,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
   <nav class="tabs" role="tablist" aria-label="เมนูหลัก">
     <button role="tab" id="tabbtn-send" data-tab="send" aria-selected="true" aria-controls="tab-send">ส่งโค้ด</button>
     <button role="tab" id="tabbtn-history" data-tab="history" aria-selected="false" aria-controls="tab-history">ประวัติของฉัน</button>
-    <button role="tab" id="tabbtn-score" data-tab="score" aria-selected="false" aria-controls="tab-score">GC Score</button>
+    <button role="tab" id="tabbtn-score" data-tab="score" aria-selected="false" aria-controls="tab-score" hidden>GC Score</button>
     <button role="tab" id="tabbtn-admin" data-tab="admin" aria-selected="false" aria-controls="tab-admin" hidden>หลังบ้าน</button>
   </nav>
 </header>
@@ -377,7 +387,10 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         </div>
       </section>
       <section id="manageBox">
-        <h2>สินค้า</h2>
+        <h2>GC Score</h2>
+        <label class="gcswitch" for="gcVisible"><input type="checkbox" id="gcVisible"><span class="gcswitch__track" aria-hidden="true"></span>
+          <span><b id="gcVisibleLabel">ครีเอเตอร์ยังไม่เห็น GC Score</b><small>เปิดเมื่อพร้อมประกาศแคมเปญ ระหว่างปิด แอดมินยังติ๊กยอดขายและดูคะแนนได้ตามปกติ</small></span></label>
+        <h2 class="mt">สินค้า</h2>
         <ul class="plist" id="productList"></ul>
         <div class="padd">
           <label class="pimg"><span id="pimgView">+ รูป</span><input type="file" id="imgFile" accept="image/*" class="sr" aria-label="เลือกรูปสินค้า"></label>
@@ -513,6 +526,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     (cat.banners || []).forEach(function (b) { s['settings/brand/banners/' + b.id] = { name: b.name || '', image: b.image, active: b.active !== false, createdAt: b.created_at }; });
     var brand = cat.brand || {};
     s['settings/brand'] = { name: brand.name || '', logo: brand.logo || '' };
+    s['settings/gc'] = { visible: !!(cat.gc && cat.gc.visible === true) };
     try { sset(BRAND_KEY, JSON.stringify(s['settings/brand'])); } catch (e) {}
 
     var clips = cache.all ? (cache.all.clips || []) : (cache.mine || []);
@@ -606,6 +620,10 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       if (op === 'set') return done(call('product_add', pick(data, ['name', 'image'])));
       if (op === 'update') return done(call('product_update', Object.assign({ id: seg[1] }, pick(data, ['name', 'image', 'active']))));
       return unsupported();
+    }
+    if (path === 'settings/gc') {
+      if (op === 'delete') return unsupported();
+      return done(call('gc_set', { visible: data.visible === true }));
     }
     if (path === 'settings/brand') {
       if (op === 'delete') return unsupported();
@@ -978,7 +996,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     products: [], productsLoaded: false,
     mine: null,
     all: [], names: {},
-    brand: { name: '', logo: '' }, banners: [], editing: null,
+    brand: { name: '', logo: '' }, banners: [], editing: null, gcVisible: false,
     draft: [newClip()], handleTouched: false, openPicker: null, newImg: '',
     filter: { status: 'all', product: 'all', q: '' },
     saving: false, adminPending: false, tab: 'send'
@@ -1201,8 +1219,19 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
     });
     return out;
   }
+  function canSeeGc() { return S.gcVisible || S.isAdmin; }
+  function applyGcVisibility() {
+    var btn = $('#tabbtn-score');
+    btn.hidden = !canSeeGc();
+    if (btn.hidden && S.tab === 'score') setTab('send');
+    var sw = $('#gcVisible'); if (sw) sw.checked = S.gcVisible;
+    var lb = $('#gcVisibleLabel'); if (lb) lb.textContent = S.gcVisible ? 'ครีเอเตอร์เห็น GC Score แล้ว' : 'ครีเอเตอร์ยังไม่เห็น GC Score';
+    if (S.tab === 'score') renderScore();
+    renderHistory();
+  }
   function renderScore() {
     var box = $('#score'); if (!box) return;
+    if (!canSeeGc()) { box.innerHTML = ''; return; }
     var clips = myClips(), now = Date.now();
     var gc = clips.filter(isGc).length;
     var used = clips.filter(function (c) { return statusOf(c, now) === 'used'; }).length;
@@ -1231,6 +1260,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         '<div><b>' + fmtNum(gc) + '</b><span>เกิดยอดขาย</span></div>' +
         '<div><b>' + rate + '%</b><span>อัตราเกิดยอดขาย</span></div>' +
       '</div>' +
+      (S.gcVisible ? '' : '<p class="gc-rule"><b>ตัวอย่างสำหรับทีมงาน</b> ครีเอเตอร์ยังไม่เห็นหน้านี้ เปิดได้ที่แท็บหลังบ้าน หัวข้อ GC Score</p>') +
       '<p class="gc-rule"><b>วิธีนับ GC</b> แบรนด์จะบันทึกให้เมื่อคลิปที่ยิงแอดแล้วเกิดยอดขาย คลิปละ 1 GC ไม่ว่ายอดขายจะมากหรือน้อย Extra Com จ่ายเพิ่มจากค่าคอมพื้นฐาน ตรวจสอบได้ที่หน้าประวัติของฉัน</p>';
   }
 
@@ -1251,7 +1281,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       return '<li><div class="hist__top"><span class="hist__prod">' + esc(c.productName || 'ไม่ระบุสินค้า') + '</span>' +
         '<span class="pill pill--plain"><span class="dot dot--' + st + '" aria-hidden="true"></span>' + STATUS_LABEL[st] + '</span></div>' +
         '<p class="hist__meta">@' + esc(c.handle) + ' ส่งเมื่อ ' + esc(fmtDate(c.submittedAt)) + (exp ? ' (' + esc(exp) + ')' : '') + link + '</p>' +
-        (isGc(c) ? '<p class="hist__meta"><span class="pill pill--gc">เกิดยอดขาย +1 GC</span></p>' : '') +
+        (isGc(c) && canSeeGc() ? '<p class="hist__meta"><span class="pill pill--gc">เกิดยอดขาย +1 GC</span></p>' : '') +
         (c.note ? '<p class="hist__meta">หมายเหตุจากแบรนด์: ' + esc(c.note) + '</p>' : '') +
         '<span class="code">' + esc(c.code) + '</span></li>';
     }).join('') + '</ul>';
@@ -1750,6 +1780,14 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       fileToThumb(f, true).then(function (src) { saveLogo(src, 'บันทึกโลโก้แล้ว'); }, imgError);
     });
     $('#removeLogo').addEventListener('click', function () { saveLogo('', 'ลบโลโก้แล้ว'); });
+    $('#gcVisible').addEventListener('change', function (e) {
+      var on = e.target.checked, el = e.target;
+      el.disabled = true;
+      enqueue('settings/gc', function () { return S.db.doc('settings/gc').set({ visible: on }); })
+        .then(function () { toast(on ? 'เปิด GC Score ให้ครีเอเตอร์เห็นแล้ว' : 'ซ่อน GC Score จากครีเอเตอร์แล้ว'); },
+              function (err) { el.checked = !on; toast(writeErrorMessage(err)); })
+        .then(function () { el.disabled = false; });
+    });
 
     $('#bannerFile').addEventListener('change', function (e) {
       var f = e.target.files && e.target.files[0]; e.target.value = '';
@@ -1822,6 +1860,12 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
       refreshProductSelects();
       if (S.isAdmin) { renderProductFilter(); renderProductList(); }
     }, function () { S.productsLoaded = true; refreshProductSelects(); });
+
+    db.doc('settings/gc').onSnapshot(function (snap) {
+      var x = snap.exists ? (snap.data() || {}) : {};
+      S.gcVisible = x.visible === true;
+      applyGcVisibility();
+    }, function () {});
 
     db.doc('settings/brand').onSnapshot(function (snap) {
       var x = snap.exists ? (snap.data() || {}) : {};
@@ -1923,6 +1967,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-3);opacity:1}
         $('#manageBox').hidden = !S.canManage;
         $('#adminGrid').classList.toggle('admin-grid--one', !S.canManage);
         $('#usersBox').hidden = !(S.canManage && S.account);
+        applyGcVisibility();
       }
       updateSaveBtn();
       subscribe();
